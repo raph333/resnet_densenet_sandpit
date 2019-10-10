@@ -18,7 +18,7 @@ class AllConvDenseNet(nn.Module):
             nn.Conv2d(in_channels, out_channels, kernel_size=3,
                       stride=stride, padding=1),
             nn.BatchNorm2d(out_channels),
-            nn.Dropout2d(p=0.2),
+            #nn.Dropout2d(p=0.2),
             nn.ReLU(inplace=True)
         )
         return layer

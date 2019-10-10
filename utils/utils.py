@@ -1,9 +1,10 @@
+import numpy as np
 from numpy.random import choice
 import matplotlib.pyplot as plt
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torch.utils.data.sampler import SubsetRandomSampler
 
 
@@ -12,16 +13,18 @@ def train_validation_split(dataset, fraction=0.1, batchsize=64):
     @ dataset: torvision dataset
     return: training and validation set as DataLoaders
     """
-    n_val_batches = round(len(dataset) * fraction)
-    val_indices = choice(range(len(dataset)), size=n_val_batches, replace=False)
+    n_val_images = int(len(dataset) * fraction)
+    val_indices = choice(range(len(dataset)), size=n_val_images, replace=False)
     train_indices = [x for x in range(len(dataset)) if x not in val_indices]
 
-    train_loader = DataLoader(dataset,
-                              sampler=SubsetRandomSampler(train_indices),
+    train_loader = DataLoader(Subset(dataset, train_indices),
+                              #sampler=SubsetRandomSampler(train_indices),
+                              shuffle=True,
                               batch_size=batchsize
                               )
-    val_loader = DataLoader(dataset,
-                            sampler=SubsetRandomSampler(val_indices),
+    val_loader = DataLoader(Subset(dataset, val_indices),
+                            #sampler=SubsetRandomSampler(val_indices),
+                            shuffle=False,
                             batch_size=batchsize
                             )
     return train_loader, val_loader
@@ -38,7 +41,7 @@ def prediction_from_output(model_output: torch.Tensor):
     return max_probs, predictions
   
 
-def train_model(net, train, validation, optimizer, max_epoch=100):
+def train_model(net, train, validation, optimizer, scheduler, max_epoch=100):
     """
     This function returns nothing. The parametes of @net are updated in-place
     and the error statistics are written to a global variable. This allows to
@@ -52,11 +55,6 @@ def train_model(net, train, validation, optimizer, max_epoch=100):
     error_stats = []
   
     criterion = nn.CrossEntropyLoss()
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer,
-        milestones=[x for x in range(1, max_epoch) if x % 20 == 0],
-        gamma=0.5  # decrease learning rate by half each step
-    )
     net.cuda()
   
     print('epoch\ttraining-CE\tvalidation-CE\tvalidation-accuracy (%)')
@@ -72,7 +70,7 @@ def train_model(net, train, validation, optimizer, max_epoch=100):
             # prediction and error:
             output = net(images)
             loss = criterion(output, labels)  # loss of current batch
-            training_loss += loss.item()  # keep track of training error
+            training_loss += loss.item() / len(train)
 
             # update parameters:
             loss.backward()
@@ -89,17 +87,17 @@ def train_model(net, train, validation, optimizer, max_epoch=100):
                 # prediction and error:
                 output = net(images)
                 loss = criterion(output, labels)
-                validation_loss += loss.item()
+                validation_loss += loss.item() / len(validation)
 
                 predictions = prediction_from_output(output)[1]
                 accuracy = (predictions == labels).float().mean() * 100
     
         # convert to batch loss:
-        training_loss = training_loss / len(train)
-        validation_loss = validation_loss / len(validation)
+        #training_loss = training_loss / len(train)
+        #validation_loss = validation_loss / len(validation)
         scheduler.step(validation_loss)
 
-        torch.save(net.state_dict(), f'epoch{epoch}.pt')
+        #torch.save(net.state_dict(), f'epoch{epoch}.pt')
         error_stats.append( (training_loss, validation_loss) )
         print('{}\t{:.2f}\t\t{:.2f}\t\t{:.2f}'.format(
             epoch, training_loss, validation_loss, accuracy)
@@ -113,6 +111,7 @@ def test_set_evaluation(net, test, just_print=False):
     total_loss = 0
     net.eval()
     criterion = nn.CrossEntropyLoss()
+    accuracy_values = []
   
     with torch.no_grad():
         for images, labels in test:
@@ -125,9 +124,10 @@ def test_set_evaluation(net, test, just_print=False):
 
             predictions = prediction_from_output(output)[1]
             batch_accuracy = (predictions == labels).float().mean() * 100
+            accuracy_values.append(batch_accuracy)
     
     mean_batch_loss = total_loss / len(test)
-    accuracy = batch_accuracy.mean()
+    accuracy = np.mean(accuracy_values)
   
     if just_print:
         print('\nEvaluation on the test-set:')
