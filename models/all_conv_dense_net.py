@@ -18,12 +18,12 @@ class AllConvDenseNet(nn.Module):
             nn.Conv2d(in_channels, out_channels, kernel_size=3,
                       stride=stride, padding=1),
             nn.BatchNorm2d(out_channels),
-            #nn.Dropout2d(p=0.2),
+            nn.Dropout2d(p=0.1),
             nn.ReLU(inplace=True)
         )
         return layer
 
-    def __init__(self, g=48, n_classes=100):
+    def __init__(self, g=48, n_classes=100, dropout_p=0.1):
         """
         @ g: growth rate: every conv-layer outputs g channels
         @ n_classes: number of target classes
@@ -48,7 +48,7 @@ class AllConvDenseNet(nn.Module):
         self.conv4 = nn.Sequential(
             nn.Conv2d(g*4, g*4, kernel_size=1, stride=1, padding=0),
             nn.BatchNorm2d(g*4),
-            nn.Dropout2d(p=0.2),
+            nn.Dropout2d(p=dropout_p),
             nn.ReLU(inplace=True)
         )
 
@@ -58,7 +58,7 @@ class AllConvDenseNet(nn.Module):
         """
         self.conv_final = nn.Sequential(
             nn.Conv2d(g*4, n_classes, kernel_size=1, stride=1, padding=0),
-            nn.Dropout2d(p=0.2),
+            nn.Dropout2d(p=dropout_p),
             nn.ReLU(inplace=True),
             nn.AvgPool2d(kernel_size=8)
         )

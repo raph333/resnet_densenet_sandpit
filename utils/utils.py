@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Subset
-from torch.utils.data.sampler import SubsetRandomSampler
+#from torch.utils.data.sampler import SubsetRandomSampler
 
 
 def train_validation_split(dataset, fraction=0.1, batchsize=64):
@@ -56,6 +56,7 @@ def train_model(net, train, validation, optimizer, scheduler, max_epoch=100):
   
     criterion = nn.CrossEntropyLoss()
     net.cuda()
+    min_error = np.inf
   
     print('epoch\ttraining-CE\tvalidation-CE\tvalidation-accuracy (%)')
     for epoch in range(max_epoch):
@@ -92,12 +93,13 @@ def train_model(net, train, validation, optimizer, scheduler, max_epoch=100):
                 predictions = prediction_from_output(output)[1]
                 accuracy = (predictions == labels).float().mean() * 100
     
-        # convert to batch loss:
-        #training_loss = training_loss / len(train)
-        #validation_loss = validation_loss / len(validation)
+
         scheduler.step(validation_loss)
 
-        #torch.save(net.state_dict(), f'epoch{epoch}.pt')
+        if validation_loss < min_error:
+            torch.save(net.state_dict(), f'{net.__class__.__name__}_best.pt')
+            min_error = validation_loss
+            
         error_stats.append( (training_loss, validation_loss) )
         print('{}\t{:.2f}\t\t{:.2f}\t\t{:.2f}'.format(
             epoch, training_loss, validation_loss, accuracy)
@@ -108,10 +110,11 @@ def test_set_evaluation(net, test, just_print=False):
     """
     Calculate cross-entropy loss (mean batch loss) and accuracy on the test-set
     """
+    global accuracies
     total_loss = 0
     net.eval()
     criterion = nn.CrossEntropyLoss()
-    accuracy_values = []
+    accuracies = []
   
     with torch.no_grad():
         for images, labels in test:
@@ -124,10 +127,10 @@ def test_set_evaluation(net, test, just_print=False):
 
             predictions = prediction_from_output(output)[1]
             batch_accuracy = (predictions == labels).float().mean() * 100
-            accuracy_values.append(batch_accuracy)
+            accuracies.append(batch_accuracy.item())
     
     mean_batch_loss = total_loss / len(test)
-    accuracy = np.mean(accuracy_values)
+    accuracy = np.mean(accuracies)
   
     if just_print:
         print('\nEvaluation on the test-set:')

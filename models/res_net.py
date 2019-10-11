@@ -16,7 +16,7 @@ class ResNet(nn.Module):
             nn.Conv2d(in_channels, out_channels, kernel_size=3,
                       stride=stride, padding=1),
             nn.BatchNorm2d(out_channels),
-            nn.Dropout2d(p=0.2)
+            nn.Dropout2d(p=self.conv_dropout_p)
         )
         return layer
   
@@ -29,8 +29,8 @@ class ResNet(nn.Module):
         see paper: "The all convolutional net"; downside: more parameters
         """
         layers = nn.Sequential(
-            #nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1)
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=2, padding=1)
         )
         return layers
   
@@ -58,7 +58,7 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
   
   
-    def __init__(self, residuals=True, block_size=2, c=32):
+    def __init__(self, residuals=True, block_size=2, c=32, conv_dropout_p=0.1, fc_dropout_p=0.5):
         """
         @ residuals: if False: convert into regluar conv-net
         @ block_size: number of layers to be skipped by a residual shortcut
@@ -68,6 +68,8 @@ class ResNet(nn.Module):
 
         self.residuals = residuals
         self.relu = nn.ReLU(inplace=True)
+        self.conv_dropout_p = conv_dropout_p
+        self.fc_dropout_p = fc_dropout_p
 
         self.conv1 = self.conv_layer(3,      c,    stride=1)
         self.block1 = self.block(block_size, c, c, stride=1)
@@ -82,10 +84,10 @@ class ResNet(nn.Module):
         self.block4 = self.block(block_size, c*8, c*8, stride=1)
 
         self.fully_conntected = nn.Sequential(
-            nn.Dropout(p=0.5),
+            nn.Dropout(p=self.fc_dropout_p),
             nn.Linear(c*8 * 4**2, 1000, bias=True),
             self.relu,
-            nn.Dropout(p=0.5),
+            nn.Dropout(p=self.fc_dropout_p),
             nn.Linear(1000, 100, bias=True)  # softmax calculated in CE-loss
         )
   
