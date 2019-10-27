@@ -1,4 +1,4 @@
-# [ResNet](https://arxiv.org/abs/1512.03385) and [DenseNet](https://arxiv.org/abs/1608.06993) toy-implementations
+# [ResNet](https://arxiv.org/abs/1512.03385) and [DenseNet](https://arxiv.org/abs/1608.06993) implementations
 
 Originally drafted for the computer-vision course of Prof. Roland Kwitt at the University of Salzburg.
 
